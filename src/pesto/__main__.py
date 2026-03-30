@@ -6,6 +6,8 @@ import os
 import sys
 from glob import glob
 import argparse
+import re
+
 import torch as pt
 from tqdm import tqdm
 import pandas as pd
@@ -33,12 +35,87 @@ def get_arguments()-> argparse.Namespace:
     
     return parser.parse_args()
 
+def calculate_combined_effects(intermediates, output_file, threshold=0.2):
+
+    pattern = re.compile(
+    r"^(?P<uniprot>[A-Za-z0-9]+)"
+    r"(?:_(?P<mut>[A-Z][0-9]+[A-Z]))?"
+    r"_(?P<interaction>[A-Za-z0-9\-]+)\.tsv$"
+    )
+
+
+    files = os.listdir(intermediates)
+
+    # Structure:
+    # dict[(uniprot, mutation)] = {interaction: delta}
+    all_results = {}
+
+    # Map WT and mutant files
+    file_map = {}  # (uniprot, interaction) → {"WT": file, "mutants": {mut: file}}
+
+    for fname in files:
+        m = pattern.match(fname)
+        if not m:
+            continue
+        
+        uniprot = m.group("uniprot")
+        mut = m.group("mut")           # None for WT
+        interaction = m.group("interaction")
+
+        key = (uniprot, interaction)
+        file_map.setdefault(key, {"WT": None, "mutants": {}})
+        
+        if mut is None:
+            file_map[key]["WT"] = fname
+        else:
+            file_map[key]["mutants"][mut] = fname
+            
+    # Compute deltas
+    for (uniprot, interaction), entry in file_map.items():
+        wt_file = entry["WT"]
+        if wt_file is None:
+            continue  # no WT to compare to
+        
+        wt_df = pd.read_csv(os.path.join(intermediates, wt_file), sep="\t")
+
+        for mut, mut_file in entry["mutants"].items():
+            mut_df = pd.read_csv(os.path.join(intermediates, mut_file), sep="\t")
+            
+            merged = wt_df.merge(mut_df, on="res_num", suffixes=("_wt", "_mut"))
+            
+            #calc from cut-off
+            mask = (merged["prob_wt"] > threshold) | (merged["prob_mut"] > threshold)
+            high_conf = merged[mask].copy()
+
+            if len(high_conf) == 0:
+                delta = 0
+            else:
+                high_conf["absdiff"] = (high_conf["prob_mut"] - high_conf["prob_wt"]).abs()
+                delta = high_conf["absdiff"].mean()
+                        
+            key = (uniprot, mut)
+            if key not in all_results:
+                all_results[key] = {}
+            all_results[key][f'pesto_interface_prob_{interaction}'] = delta
+
+
+    # Convert to a table (mutants × interactions)
+    df = pd.DataFrame([
+        {"UniProt": uniprot, "UniProt_AAchange": mutation, **interaction_dict}
+        for (uniprot, mutation), interaction_dict in all_results.items()
+    ])
+
+    # Fill missing interactions with 0 or NaN (choose 0 for convenience)
+    df = df.fillna(0)
+
+    df.to_csv(output_file, index=False, sep='\t')
+    print("Done. Matrix written to", output_file)
+
 
 def run_model(model, dataset, out_path, device="cpu"):
     # run model on all subunits
-
-    pdb_res = {}
-
+    out_folder = os.path.join(out_path,'intermediates')
+    os.makedirs(out_folder, exist_ok=True)
     with pt.no_grad():
         for subunits, filepath in tqdm(dataset):
             pdb_name = os.path.basename(filepath)[:-4]
@@ -55,13 +132,14 @@ def run_model(model, dataset, out_path, device="cpu"):
             # run model
             z = model(X.to(device), ids_topk.to(device), q.to(device), M.float().to(device))
             # for all predictions
-            i_dict = {}
             for i, cat in zip(range(z.shape[1]), ["protein", "DNA-RNA", "ion", "ligand", "lipid"]):
                 # prediction
                 p = pt.sigmoid(z[:,i])
                 p = p.cpu().numpy()
                 # encode result
-                pd.DataFrame({"res_num":[n+1 for n in range(len(p))],"prob":p}).to_csv(os.path.join(out_path,f'{pdb_name}_{cat}.tsv'), sep='\t', index=False)
+                pd.DataFrame({"res_num":[n+1 for n in range(len(p))],"prob":p}).to_csv(os.path.join(out_folder,f'{pdb_name}_{cat}.tsv'), sep='\t', index=False)
+    
+    calculate_combined_effects(out_folder, os.path.join(out_path,'combined_results.tsv'))
 
 
 def main():
