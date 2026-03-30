@@ -4,46 +4,26 @@
 
 PeSTo (Protein Structure Transformer) is a parameter-free geometric deep learning method to predict protein interaction interfaces from a protein structure. It is available for free without registration as an online tool ([pesto.epfl.ch](https://pesto.epfl.ch/)).
 
+### !In this Fork! (disclaimer: probably broke some original functionality by moving code around.)
+---
+
 ## Installation
 Download the source code and examples by cloning the repository.
 ```
-git clone https://github.com/LBM-EPFL/PeSTo.git
+git clone https://github.com/Timniem/PeSTo.git
 cd PeSTo
+pip install .
+
 ```
+## Usage .tsv output for every pdb and interface type (made for model v4_1)
+
+```
+pesto -i [folder with input pdbs] -m [model path e.g. PeSTo/model/save/i_v4_1_2021-09-07_11-21] -o [output path]
+```
+---
 
 The primary requirements for PeSTo are [GEMMI](https://gemmi.readthedocs.io/en/latest/) to parse PDB files and [PyTorch](https://pytorch.org/) for the deep learning framework. During training, [h5py](https://www.h5py.org/) is used to store the processed data in an optimized format. The predicted interfaces can be visualized using [PyMOL](https://pymol.org/2/) or [ChimeraX](https://www.cgl.ucsf.edu/chimerax/).
 
-### Using Anaconda
-All the specific dependencies are listed in [pesto.yml](pesto.yml). The specific dependencies can be easily installed using [Anaconda](https://www.anaconda.com/). Create and activate the environement with:
-
-```
-conda env create -f pesto.yml
-conda activate pesto
-```
-
-Or installing manually de dependencies
-
-```
-conda create -n pesto python=3.9
-conda activate pesto
-conda install pytorch torchvision torchaudio pytorch-cuda=11.8 -c pytorch -c nvidia
-conda install numpy scipy pandas matplotlib scikit-learn h5py tqdm
-conda install gemmi tensorboard -c conda-forge
-```
-
-### Using virtualenv
-Alternatively, it is possible to create a local environment using [virtualenv](https://virtualenv.pypa.io/en/latest/) and install all the dependencies.
-```
-virtualenv pesto
-source pesto/bin/activate
-pip install -r requirements.txt
-```
-
-## Application
-A set a [Jupyter](https://jupyter.org/) notebooks and python scripts are available to apply our trained model. Start a JupyterLab session with:
-```
-jupyter-lab
-```
 
 ### Interfaces predictions
 
