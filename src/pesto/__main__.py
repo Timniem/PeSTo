@@ -35,7 +35,7 @@ def get_arguments()-> argparse.Namespace:
     
     return parser.parse_args()
 
-def calculate_combined_effects(intermediates, output_file, threshold=0.2):
+def calculate_combined_effects(intermediates, output_file, threshold=0.5):
 
     pattern = re.compile(
     r"^(?P<uniprot>[A-Za-z0-9]+)"
