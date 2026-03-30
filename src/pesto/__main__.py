@@ -96,7 +96,7 @@ def calculate_combined_effects(intermediates, output_file, threshold=0.2):
             key = (uniprot, mut)
             if key not in all_results:
                 all_results[key] = {}
-            all_results[key][f'pesto_interface_prob_{interaction}'] = delta
+            all_results[key][f'pesto_delta_interface_prob_{interaction}'] = delta
 
 
     # Convert to a table (mutants × interactions)
