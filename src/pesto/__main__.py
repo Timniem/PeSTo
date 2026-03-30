@@ -90,8 +90,8 @@ def calculate_combined_effects(intermediates, output_file, threshold=0.2):
             if len(high_conf) == 0:
                 delta = 0
             else:
-                high_conf["absdiff"] = (high_conf["prob_mut"] - high_conf["prob_wt"]).abs()
-                delta = high_conf["absdiff"].mean()
+                high_conf["diff"] = (high_conf["prob_mut"] - high_conf["prob_wt"])
+                delta = high_conf["diff"].mean()
                         
             key = (uniprot, mut)
             if key not in all_results:
